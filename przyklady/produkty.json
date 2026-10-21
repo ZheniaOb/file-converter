@@ -1,0 +1,4 @@
+[
+  {"id": 1, "nazwa": "Żółty ołówek", "cena": 2.5, "dostępny": true},
+  {"id": 2, "nazwa": "Gumka", "cena": null, "tagi": ["biuro", "szkoła"]}
+]
