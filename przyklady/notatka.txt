@@ -1,0 +1,9 @@
+Notatka ze spotkania
+
+Zażółć gęślą jaźń – test polskich znaków: ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ.
+
+Lista zadań:
+- przygotować konwerter,
+- napisać testy.
+
+Ostatni akapit.

@@ -21,7 +21,8 @@ class TestDane(unittest.TestCase):
     def test_available_targets(self):
         self.assertEqual(available_targets(Path("a.CSV")), [".json"])
         self.assertEqual(available_targets(Path("a.json")), [".csv"])
-        self.assertEqual(available_targets(Path("a.txt")), [])
+        self.assertEqual(available_targets(Path("a.docx")), [".odt", ".pdf", ".txt"])
+        self.assertEqual(available_targets(Path("a.xyz")), [])
 
     def test_csv_json_csv_round_trip(self):
         source = PRZYKLADY / "osoby.csv"
