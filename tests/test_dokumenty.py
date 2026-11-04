@@ -1,5 +1,6 @@
 """Uruchomienie: python -m unittest discover tests"""
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,6 +47,11 @@ class TestDokumenty(unittest.TestCase):
         with self.assertRaisesRegex(ConversionError, "nie jest poprawnym dokumentem DOCX"):
             self.convert(PRZYKLADY / "uszkodzony.docx", "txt")
         self.assertEqual(list(self.out.iterdir()), [])
+
+    def test_missing_python_docx_is_reported(self):
+        with mock.patch.dict(sys.modules, {"docx": None, "docx.table": None}):  # None → ImportError
+            with self.assertRaisesRegex(ConversionError, "Brak biblioteki python-docx.*pip install"):
+                self.convert(PRZYKLADY / "notatka.txt", "docx")
 
     def test_missing_libreoffice_is_reported(self):
         with mock.patch.dict(os.environ, {"KONWERTER_SOFFICE": str(self.out / "brak" / "soffice.exe")}):
