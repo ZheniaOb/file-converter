@@ -46,6 +46,11 @@ class ConversionRequest:
     def key(self) -> tuple[str, str]:
         return self.source.suffix.lower(), "." + self.target_format.lower().lstrip(".")
 
+    @property
+    def target(self) -> Path:
+        """Domyślna ścieżka wyniku (może już istnieć)."""
+        return self.output_dir / (self.source.stem + self.key[1])
+
     def validate(self) -> None:
         if not self.source.is_file():
             raise ConversionError(f"Nie znaleziono pliku wejściowego: {self.source}")
@@ -59,10 +64,14 @@ class ConversionRequest:
             )
 
 
-def execute(request: ConversionRequest) -> Path:
-    """Wykonuje konwersję; nigdy nie nadpisuje istniejącego pliku. Zwraca ścieżkę wyniku."""
+def execute(request: ConversionRequest, overwrite: bool = False) -> Path:
+    """Wykonuje konwersję i zwraca ścieżkę wyniku.
+
+    overwrite=False: istniejący plik zostaje, wynik dostaje bezpieczną nazwę „plik (1).ext”.
+    overwrite=True: istniejący plik jest zastępowany (GUI pyta o to użytkownika).
+    """
     request.validate()
-    target = free_path(request.output_dir / (request.source.stem + request.key[1]))
+    target = request.target if overwrite else free_path(request.target)
     start = time.perf_counter()
     try:
         REGISTRY[request.key](request.source, target)

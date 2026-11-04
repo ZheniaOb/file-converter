@@ -71,6 +71,13 @@ class TestDane(unittest.TestCase):
         second = self.convert(PRZYKLADY / "osoby.csv", "json")
         self.assertEqual((first.name, second.name), ("osoby.json", "osoby (1).json"))
 
+    def test_overwrite_when_confirmed(self):
+        (self.out / "osoby.json").write_text("stara treść", encoding="utf-8")
+        result = execute(ConversionRequest(PRZYKLADY / "osoby.csv", "json", self.out), overwrite=True)
+        self.assertEqual(result.name, "osoby.json")
+        self.assertIn("Zażółć", result.read_text(encoding="utf-8"))
+        self.assertEqual(len(list(self.out.iterdir())), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

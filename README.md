@@ -1,6 +1,6 @@
 # Uniwersalny konwerter plików – Programowanie V, Projekt 1
 
-Etap: **Lab. 3** – 8 kierunków konwersji z 3 grup (CSV/JSON, TXT/DOCX, DOCX/ODT/PDF), uruchamiane bez GUI.
+Etap: **Lab. 4** – 8 kierunków konwersji z 3 grup (CSV/JSON, TXT/DOCX, DOCX/ODT/PDF), okno w Tkinter/ttk oraz tryb wiersza poleceń.
 
 ## Wymagania
 
@@ -11,7 +11,22 @@ Etap: **Lab. 3** – 8 kierunków konwersji z 3 grup (CSV/JSON, TXT/DOCX, DOCX/O
 
 Program szuka LibreOffice w kolejności: zmienna środowiskowa `KONWERTER_SOFFICE` (pełna ścieżka do `soffice`) → `soffice`/`libreoffice` w `PATH` → typowe katalogi instalacji (Windows, macOS). Brak LibreOffice daje komunikat z instrukcją instalacji; pozostałe konwersje działają dalej.
 
-## Uruchomienie
+## Uruchomienie – okno (GUI)
+
+```
+python main.py
+```
+
+1. **Wybierz plik…** – okno wyboru pokazuje domyślnie tylko obsługiwane typy (`.csv`, `.docx`, `.json`, `.odt`, `.txt`). Katalog zapisu ustawia się na katalog pliku.
+2. **Format docelowy** – lista zawiera wyłącznie formaty dostępne dla rozszerzenia pliku (z `available_targets()`); dla nieobsługiwanego pliku lista jest zablokowana, a status podaje obsługiwane typy.
+3. **Wybierz katalog…** – opcjonalnie inny katalog zapisu.
+4. **Konwertuj** – przycisk jest aktywny dopiero, gdy wybrano plik, katalog i format.
+
+- Jeśli plik wynikowy już istnieje, program pyta: **Tak** – nadpisz, **Nie** – zapisz jako `plik (1).ext`, **Anuluj** – nie konwertuj.
+- Konwersja działa w osobnym wątku – okno nie zamarza (ważne przy LibreOffice, ok. 5 s); w tym czasie pasek postępu jest animowany, a przyciski zablokowane.
+- Wynik: status pod paskiem i okno „Gotowe” ze ścieżką pliku; błąd: czerwony status i okno z przyczyną oraz dalszym krokiem.
+
+## Uruchomienie – wiersz poleceń
 
 ```
 python main.py przyklady/osoby.csv json -o wyniki
@@ -22,7 +37,7 @@ python main.py przyklady/raport.docx pdf -o wyniki
 
 - `format` można podać jako `json` lub `.json`.
 - `-o` – katalog zapisu (musi istnieć); domyślnie katalog pliku wejściowego.
-- Istniejący plik nigdy nie jest nadpisywany: powstaje `osoby (1).json`, `osoby (2).json`, ...
+- W trybie bez GUI istniejący plik nigdy nie jest nadpisywany: powstaje `osoby (1).json`, `osoby (2).json`, ...
 - Błędy kończą program kodem `1` z komunikatem; operacje i błędy są logowane do `konwerter.log`.
 
 Testy: `python -m unittest discover tests`
@@ -92,11 +107,12 @@ Wywołanie: `soffice --headless --norestore -env:UserInstallation=<tymczasowy pr
 
 ## Architektura
 
-- `konwerter/rejestr.py` – rejestr par formatów (`@converter`), `ConversionRequest.validate()`, `available_targets()`, `execute()`, wspólny wyjątek `ConversionError`, bezpieczna nazwa pliku.
+- `konwerter/rejestr.py` – rejestr par formatów (`@converter`), `ConversionRequest.validate()`, `available_targets()`, `execute(request, overwrite=False)`, wspólny wyjątek `ConversionError`, bezpieczna nazwa pliku.
 - `konwerter/dane.py` – grupa A: CSV ↔ JSON.
 - `konwerter/dokumenty.py` – grupa B: TXT ↔ DOCX.
 - `konwerter/biuro.py` – grupa C: wykrywanie i wywołanie LibreOffice.
-- `main.py` – interfejs wiersza poleceń (GUI w Lab. 4 użyje tego samego rejestru).
+- `gui.py` – okno Tkinter/ttk; nie zna konkretnych konwerterów – formaty bierze z `available_targets()`, konwersję uruchamia przez `execute()` w wątku roboczym, a wynik odbiera w wątku okna (`after()`).
+- `main.py` – punkt startowy: bez argumentów otwiera okno, z argumentami działa w wierszu poleceń; konfiguruje log `konwerter.log`.
 
 Nowa para formatów = nowa funkcja z dekoratorem `@converter(".x", ".y")`; interfejs pobiera listę celów z `available_targets()`.
 
