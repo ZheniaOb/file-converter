@@ -1,5 +1,6 @@
-"""Rejestr konwerterów – logika konwersji oddzielona od interfejsu (CLI, później GUI)."""
+"""Rejestr konwerterów – logika konwersji oddzielona od interfejsu (CLI i GUI)."""
 import logging
+import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -52,16 +53,29 @@ class ConversionRequest:
         return self.output_dir / (self.source.stem + self.key[1])
 
     def validate(self) -> None:
+        """Sprawdza wszystko, co da się sprawdzić przed konwersją; każdy błąd mówi, co zrobić dalej."""
+        if self.source == Path(""):
+            raise ConversionError("Nie wybrano pliku wejściowego. Wybierz plik do konwersji.")
+        if not self.target_format.strip(". "):
+            raise ConversionError("Nie wybrano formatu docelowego. Wybierz format z listy.")
         if not self.source.is_file():
-            raise ConversionError(f"Nie znaleziono pliku wejściowego: {self.source}")
+            raise ConversionError(f"Nie znaleziono pliku wejściowego: {self.source}. Sprawdź ścieżkę i wybierz plik ponownie.")
         if not self.output_dir.is_dir():
-            raise ConversionError(f"Nie znaleziono katalogu docelowego: {self.output_dir}")
+            raise ConversionError(f"Nie znaleziono katalogu docelowego: {self.output_dir}. Wybierz istniejący katalog.")
         if self.key not in REGISTRY:
-            targets = ", ".join(available_targets(self.source)) or "brak"
+            targets = ", ".join(available_targets(self.source))
             raise ConversionError(
                 f"Nieobsługiwana konwersja {self.key[0] or '(brak rozszerzenia)'} → {self.key[1]}. "
-                f"Dostępne formaty docelowe: {targets}."
+                + (f"Wybierz jeden z formatów: {targets}." if targets else
+                   f"Wybierz plik jednego z typów: {', '.join(sorted({s for s, _ in REGISTRY}))}.")
             )
+        try:  # os.access() na Windows nie widzi uprawnień ACL – próbny plik jest pewniejszy
+            with tempfile.TemporaryFile(dir=self.output_dir):
+                pass
+        except OSError as e:
+            raise ConversionError(
+                f"Brak uprawnień do zapisu w katalogu {self.output_dir}. Wybierz inny katalog zapisu."
+            ) from e
 
 
 def execute(request: ConversionRequest, overwrite: bool = False) -> Path:
@@ -77,7 +91,10 @@ def execute(request: ConversionRequest, overwrite: bool = False) -> Path:
         REGISTRY[request.key](request.source, target)
     except OSError as e:
         log.error("%s → %s: %s", request.source, target, e)
-        raise ConversionError(f"Błąd odczytu/zapisu pliku: {e}") from e
+        raise ConversionError(
+            f"Błąd odczytu/zapisu pliku: {e}. Sprawdź, czy plik nie jest otwarty w innym programie "
+            f"(np. Word, Excel) i czy na dysku jest miejsce, a potem spróbuj ponownie."
+        ) from e
     except ConversionError as e:
         log.error("%s → %s: %s", request.source, target, e)
         raise

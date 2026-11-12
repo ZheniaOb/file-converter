@@ -38,7 +38,10 @@ def find_soffice() -> str:
 def libreoffice_convert(source: Path, target: Path) -> None:
     # DOCX i ODT to archiwa ZIP; LibreOffice bez tej kontroli "skonwertowałby" dowolny tekst
     if not zipfile.is_zipfile(source):
-        raise ConversionError(f"Plik {source.name} jest uszkodzony albo nie jest dokumentem {source.suffix.upper()}.")
+        raise ConversionError(
+            f"Plik {source.name} jest uszkodzony albo nie jest dokumentem {source.suffix.upper()}. "
+            f"Otwórz go w edytorze tekstu i zapisz ponownie w tym formacie."
+        )
     with tempfile.TemporaryDirectory() as tmp:
         command = [
             find_soffice(), "--headless", "--norestore",
@@ -49,14 +52,21 @@ def libreoffice_convert(source: Path, target: Path) -> None:
         try:
             result = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=TIMEOUT)
         except subprocess.TimeoutExpired as e:
-            raise ConversionError(f"LibreOffice nie zakończył konwersji w {TIMEOUT} s.") from e
+            raise ConversionError(
+                f"LibreOffice nie zakończył konwersji w {TIMEOUT} s. "
+                f"Zamknij okna LibreOffice i spróbuj ponownie; duży dokument podziel na części."
+            ) from e
         if result.returncode != 0:
             raise ConversionError(
-                f"LibreOffice zakończył pracę z kodem {result.returncode}: {result.stderr.strip() or 'brak opisu'}"
+                f"LibreOffice zakończył pracę z kodem {result.returncode}: {result.stderr.strip() or 'brak opisu'}. "
+                f"Sprawdź, czy plik otwiera się w LibreOffice; szczegóły w konwerter.log."
             )
         produced = Path(tmp) / (source.stem + target.suffix)
         if not produced.is_file():  # LibreOffice zwraca 0 także wtedy, gdy nie umie otworzyć pliku
-            raise ConversionError(f"LibreOffice nie utworzył pliku – {source.name} może być uszkodzony.")
+            raise ConversionError(
+                f"LibreOffice nie utworzył pliku – {source.name} może być uszkodzony. "
+                f"Otwórz go w LibreOffice lub Wordzie i zapisz ponownie."
+            )
         shutil.move(produced, target)
 
 

@@ -36,7 +36,10 @@ def docx_to_txt(source: Path, target: Path) -> None:
     try:
         document = docx.Document(source)
     except Exception as e:  # python-docx zgłasza różne wyjątki dla uszkodzonego pliku
-        raise ConversionError(f"Plik {source.name} nie jest poprawnym dokumentem DOCX ({e}).") from e
+        raise ConversionError(
+            f"Plik {source.name} nie jest poprawnym dokumentem DOCX ({e}). "
+            f"Otwórz go w Wordzie lub LibreOffice i zapisz ponownie jako DOCX."
+        ) from e
     blocks = []
     for item in document.iter_inner_content():
         if isinstance(item, docx.table.Table):

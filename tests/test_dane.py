@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from konwerter import ConversionError, ConversionRequest, available_targets, execute
 
@@ -65,6 +66,17 @@ class TestDane(unittest.TestCase):
             self.convert(self.out / "brak.csv", "json")
         with self.assertRaisesRegex(ConversionError, "Nieobsługiwana konwersja .csv → .pdf"):
             self.convert(PRZYKLADY / "osoby.csv", "pdf")
+
+    def test_validate_empty_choices(self):
+        with self.assertRaisesRegex(ConversionError, "Nie wybrano pliku"):
+            self.convert(Path(""), "json")
+        with self.assertRaisesRegex(ConversionError, "Nie wybrano formatu"):
+            self.convert(PRZYKLADY / "osoby.csv", "")
+
+    def test_validate_not_writable_dir(self):
+        with mock.patch("konwerter.rejestr.tempfile.TemporaryFile", side_effect=PermissionError("odmowa")):
+            with self.assertRaisesRegex(ConversionError, "Brak uprawnień do zapisu.*Wybierz inny katalog"):
+                self.convert(PRZYKLADY / "osoby.csv", "json")
 
     def test_does_not_overwrite(self):
         first = self.convert(PRZYKLADY / "osoby.csv", "json")

@@ -1,15 +1,31 @@
 # Uniwersalny konwerter plików – Programowanie V, Projekt 1
 
-Etap: **Lab. 4** – 8 kierunków konwersji z 3 grup (CSV/JSON, TXT/DOCX, DOCX/ODT/PDF), okno w Tkinter/ttk oraz tryb wiersza poleceń.
+## Cel
+
+Aplikacja desktopowa (Python 3 + Tkinter/ttk), która pozwala wybrać plik wejściowy, pokazuje wyłącznie dostępne dla niego formaty docelowe, wykonuje konwersję i zapisuje wynik we wskazanym katalogu. Obsługuje **8 kierunków konwersji z 3 grup**: dane strukturalne (CSV ↔ JSON), tekst/dokument (TXT ↔ DOCX) oraz formaty biurowe (DOCX/ODT → PDF, DOCX ↔ ODT). Konwersję można też uruchomić z wiersza poleceń, bez okna.
 
 ## Wymagania
 
-- Python 3.10+
-- `python-docx` (TXT ↔ DOCX): `pip install -r requirements.txt`
-- LibreOffice (tylko grupa C: PDF, ODT): https://www.libreoffice.org/download/
-  (Windows: `winget install TheDocumentFoundation.LibreOffice`)
+| Zależność | Do czego | Instalacja |
+|-----------|----------|------------|
+| Python 3.10+ z modułem `tkinter` | cały program | https://www.python.org/downloads/ (na Linuksie dodatkowo `sudo apt install python3-tk`) |
+| `python-docx` ≥ 1.1 | TXT ↔ DOCX | `requirements.txt` (patrz niżej) |
+| LibreOffice | tylko grupa C (PDF, ODT) | https://www.libreoffice.org/download/ · Windows: `winget install TheDocumentFoundation.LibreOffice` · Linux: `sudo apt install libreoffice` |
 
-Program szuka LibreOffice w kolejności: zmienna środowiskowa `KONWERTER_SOFFICE` (pełna ścieżka do `soffice`) → `soffice`/`libreoffice` w `PATH` → typowe katalogi instalacji (Windows, macOS). Brak LibreOffice daje komunikat z instrukcją instalacji; pozostałe konwersje działają dalej.
+Program szuka LibreOffice w kolejności: zmienna środowiskowa `KONWERTER_SOFFICE` (pełna ścieżka do `soffice`) → `soffice`/`libreoffice` w `PATH` → typowe katalogi instalacji (Windows, macOS). Brak LibreOffice lub `python-docx` daje komunikat z instrukcją instalacji; pozostałe konwersje działają dalej.
+
+## Instalacja
+
+```
+git clone https://github.com/ZheniaOb/file-converter.git
+cd file-converter
+python -m venv .venv
+.venv\Scripts\activate            # Windows
+source .venv/bin/activate         # Linux / macOS
+python -m pip install -r requirements.txt
+```
+
+Sprawdzenie instalacji: `python -m unittest discover tests` – powinno wypisać `OK` (bez LibreOffice testy grupy C są pomijane: `OK (skipped=1)`).
 
 ## Uruchomienie – okno (GUI)
 
@@ -40,7 +56,25 @@ python main.py przyklady/raport.docx pdf -o wyniki
 - W trybie bez GUI istniejący plik nigdy nie jest nadpisywany: powstaje `osoby (1).json`, `osoby (2).json`, ...
 - Błędy kończą program kodem `1` z komunikatem; operacje i błędy są logowane do `konwerter.log`.
 
-Testy: `python -m unittest discover tests`
+## Walidacja i obsługa błędów
+
+Przed konwersją `ConversionRequest.validate()` sprawdza: wybrany plik i format (niepuste), istnienie pliku i katalogu, obsługiwaną parę formatów oraz możliwość zapisu w katalogu (próbny plik tymczasowy). Konflikt nazw: GUI pyta o nadpisanie, CLI zapisuje pod bezpieczną nazwą. Dostępność `python-docx` i LibreOffice jest sprawdzana przy konwersji, która ich potrzebuje.
+
+Wszystkie błędy przechodzą przez jeden wyjątek `ConversionError`; komunikat zawiera przyczynę i dalszy krok, np.:
+
+```
+Błąd: Błędny JSON w pliku bledny.json: Illegal trailing comma before end of object (wiersz 2, kolumna 18). Popraw wskazane miejsce i spróbuj ponownie.
+```
+
+Każda operacja (czas trwania) i każdy błąd są zapisywane w `konwerter.log` w katalogu uruchomienia.
+
+## Testy
+
+```
+python -m unittest discover tests
+```
+
+23 testy automatyczne (`tests/`): konwertery wszystkich grup, `validate()`, `available_targets()`, bezpieczna nazwa i nadpisywanie, brak bibliotek/narzędzi oraz logika okna. Raport z minimalną macierzą testów, wynikami i zrzutami ekranu: [TESTY.md](TESTY.md).
 
 ## Macierz konwersji
 
@@ -56,6 +90,16 @@ Testy: `python -m unittest discover tests`
 | C | ODT  | DOCX | LibreOffice | jw. |
 
 Inne pary (np. PDF → DOCX, TXT → PDF) nie są obsługiwane.
+
+## Znane ograniczenia
+
+- Konwersje nie zachowują złożonego formatowania, osadzonych wykresów, przypisów ani makr; układ stron PDF może różnić się od oryginału.
+- CSV → JSON nie rozpoznaje typów – liczby i daty zostają tekstem; JSON → CSV spłaszcza zagnieżdżone wartości do tekstu JSON.
+- CSV z samym nagłówkiem daje `[]` – nazwy kolumn nie przechodzą do JSON.
+- Pliki tekstowe muszą być w UTF-8 (inne kodowania, np. Windows-1250, dają komunikat o błędzie).
+- Konwersje grupy C wymagają LibreOffice i trwają kilka sekund (start programu); limit czasu to 120 s.
+- Zamknięcie okna w trakcie konwersji (po potwierdzeniu) przerywa ją i może zostawić niedokończony plik.
+- Program był testowany na Windows 11 (Python 3.12 i 3.14, LibreOffice 26.8); Linux i macOS – tylko na podstawie dokumentacji.
 
 ## Semantyka TXT ↔ DOCX
 
@@ -119,7 +163,7 @@ Nowa para formatów = nowa funkcja z dekoratorem `@converter(".x", ".y")`; inter
 ## Źródła i narzędzia AI
 
 - Wzorzec rejestru na podstawie „Kodu inspiracyjnego” z instrukcji projektu.
-- Dokumentacja Pythona: `csv`, `json`, `pathlib`, `subprocess`, `unittest`.
+- Dokumentacja Pythona: `csv`, `json`, `pathlib`, `subprocess`, `threading`, `tkinter`/`ttk`, `tkinter.filedialog`, `unittest`.
 - python-docx – https://python-docx.readthedocs.io/ (wybrana, bo jest czysto pythonowa i obsługuje odczyt i zapis DOCX).
 - LibreOffice, parametry wiersza poleceń – https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html (jedyne darmowe narzędzie obsługujące DOCX, ODT i PDF na Windows, Linux i macOS).
 - Kod przygotowany z pomocą Claude (Anthropic).

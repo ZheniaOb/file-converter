@@ -27,6 +27,7 @@ class App(tk.Tk):
         super().__init__()
         self.title("Konwerter plików")
         self.resizable(True, False)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.source = tk.StringVar()
         self.output_dir = tk.StringVar()
         self.target_format = tk.StringVar()
@@ -176,6 +177,15 @@ class App(tk.Tk):
     def set_status(self, text: str, error: bool = False):
         self.status.set(text)
         self.status_label.configure(foreground="#b00020" if error else "")
+
+    def on_close(self):
+        if self.busy and not messagebox.askyesno(
+            "Trwa konwersja",
+            "Konwersja jeszcze trwa. Zamknięcie okna może zostawić niedokończony plik.\n\nZamknąć mimo to?",
+            icon="warning", parent=self,
+        ):
+            return
+        self.destroy()
 
     def show_error(self, error: ConversionError):
         self.set_status(f"Błąd: {error}", error=True)

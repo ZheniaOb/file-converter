@@ -11,7 +11,10 @@ def read_utf8(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8-sig")  # UTF-8 z BOM (Excel) lub bez
     except UnicodeDecodeError as e:
-        raise ConversionError(f"Plik {path.name} nie jest zapisany w UTF-8 (bajt nr {e.start}).") from e
+        raise ConversionError(
+            f"Plik {path.name} nie jest zapisany w UTF-8 (bajt nr {e.start}). "
+            f"Zapisz go ponownie z kodowaniem UTF-8 (np. w Notatniku: Zapisz jako → Kodowanie: UTF-8)."
+        ) from e
 
 
 def to_cell(value) -> str:
@@ -25,7 +28,7 @@ def to_cell(value) -> str:
 def csv_to_json(source: Path, target: Path) -> None:
     text = read_utf8(source)
     if not text.strip():
-        raise ConversionError(f"Plik {source.name} jest pusty.")
+        raise ConversionError(f"Plik {source.name} jest pusty. Wybierz plik CSV z nagłówkiem i danymi.")
     try:
         dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
     except csv.Error:
@@ -34,19 +37,22 @@ def csv_to_json(source: Path, target: Path) -> None:
     try:
         header = next(reader)
         if len(set(header)) != len(header):
-            raise ConversionError(f"Nagłówek zawiera powtórzone nazwy kolumn: {header}")
+            raise ConversionError(
+                f"Nagłówek zawiera powtórzone nazwy kolumn: {header}. Nadaj kolumnom unikalne nazwy."
+            )
         records = []
         for row in reader:
             if not row:
                 continue  # pusty wiersz
             if len(row) > len(header):
                 raise ConversionError(
-                    f"Wiersz {reader.line_num} ma {len(row)} pól, a nagłówek {len(header)}."
+                    f"Wiersz {reader.line_num} ma {len(row)} pól, a nagłówek {len(header)}. "
+                    f"Usuń nadmiarowe pola albo ujmij wartość zawierającą separator w cudzysłów."
                 )
             row += [""] * (len(header) - len(row))
             records.append(dict(zip(header, row)))
     except csv.Error as e:
-        raise ConversionError(f"Niepoprawny CSV w wierszu {reader.line_num}: {e}") from e
+        raise ConversionError(f"Niepoprawny CSV w wierszu {reader.line_num}: {e}. Popraw ten wiersz.") from e
     target.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -56,12 +62,16 @@ def json_to_csv(source: Path, target: Path) -> None:
         data = json.loads(read_utf8(source))
     except json.JSONDecodeError as e:
         raise ConversionError(
-            f"Błędny JSON w pliku {source.name}: {e.msg} (wiersz {e.lineno}, kolumna {e.colno})."
+            f"Błędny JSON w pliku {source.name}: {e.msg} (wiersz {e.lineno}, kolumna {e.colno}). "
+            f"Popraw wskazane miejsce i spróbuj ponownie."
         ) from e
     if not isinstance(data, list) or not all(isinstance(r, dict) for r in data):
-        raise ConversionError('Oczekiwano tablicy obiektów, np. [{"imię": "Anna"}, {"imię": "Jan"}].')
+        raise ConversionError(
+            'Oczekiwano tablicy obiektów, np. [{"imię": "Anna"}, {"imię": "Jan"}]. '
+            "Zmień strukturę pliku zgodnie z opisem w README."
+        )
     if not data:
-        raise ConversionError("Tablica JSON jest pusta – brak danych do zapisania.")
+        raise ConversionError("Tablica JSON jest pusta – brak danych do zapisania. Dodaj co najmniej jeden obiekt.")
     header = list(dict.fromkeys(key for record in data for key in record))  # kolejność pojawienia się
     with target.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
